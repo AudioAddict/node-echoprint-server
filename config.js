@@ -12,6 +12,7 @@ var settings = {
   solr_hostname: 'localhost',
   solr_port: 8983,
   solr_max_boolean_terms: 1024,
+  solr_corename: 'echoprint',
   
   // Set this to a system username to drop root privileges
   run_as_user: '',
@@ -39,8 +40,8 @@ try {
       settings[property] = localSettings[property];
   }
   
-  log.info('Loaded settings from config.local.js. Database is Solr on ' +
-    settings.solr_hostname + ':' + settings.solr_port);
+  log.info('Loaded settings from config.' + env + '.js. Database is Solr on ' +
+    settings.solr_hostname + ':' + settings.solr_port + ' - core: ' + settings.solr_corename);
 } catch (err) {
   log.warn('Using default settings from config.js. Database is Solr on ' +
     settings.solr_hostname + ':' + settings.solr_port);
