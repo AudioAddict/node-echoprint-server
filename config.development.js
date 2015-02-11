@@ -1,10 +1,10 @@
 /**
- * Staging configuration variables
+ * Development configuration variables
  */
 
 module.exports = {
  // Port that the web server will bind to
-  web_port: 8080,
+  web_port: 37760,
 
   // Database settings
   solr_hostname: 'localhost',
