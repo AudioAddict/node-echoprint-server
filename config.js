@@ -11,6 +11,7 @@ var settings = {
   // Database settings
   solr_hostname: 'localhost',
   solr_port: 8983,
+  solr_max_boolean_terms: 1024,
   
   // Set this to a system username to drop root privileges
   run_as_user: '',
@@ -30,7 +31,8 @@ var settings = {
 
 // Override default settings with any local settings
 try {
-  var localSettings = require('./config.local');
+  var env = process.env.NODE_ENV || 'development'
+  localSettings = require('./config.' + env);
   
   for (var property in localSettings) {
     if (localSettings.hasOwnProperty(property))
