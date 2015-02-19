@@ -1,3 +1,4 @@
+require('newrelic');
 var urlParser = require('url');
 var log = require('winston');
 var fingerprinter = require('./fingerprinter');

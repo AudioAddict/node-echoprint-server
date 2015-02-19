@@ -4,6 +4,8 @@
 
 var log = require('winston');
 
+var env = process.env.NODE_ENV || 'development'
+
 var settings = {
   // Port that the web server will bind to
   web_port: 37760,
@@ -27,12 +29,14 @@ var settings = {
   code_threshold: 10,
   
   // Supported version of echoprint-codegen codes
-  codever: '4.12'
+  codever: '4.12',
+
+  // Application environment
+  environment: env
 };
 
 // Override default settings with any local settings
 try {
-  var env = process.env.NODE_ENV || 'development'
   localSettings = require('./config.' + env);
   
   for (var property in localSettings) {

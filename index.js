@@ -1,3 +1,4 @@
+require('newrelic');
 var http = require('http');
 var urlParser = require('url');
 var qs = require('querystring');

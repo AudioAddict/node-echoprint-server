@@ -1,3 +1,4 @@
+require('newrelic');
 var fs = require('fs');
 var solr = require('solr-client');
 var temp = require('temp');
