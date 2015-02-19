@@ -1,3 +1,4 @@
+require('newrelic');
 var async = require('async');
 var urlParser = require('url');
 var log = require('winston');
