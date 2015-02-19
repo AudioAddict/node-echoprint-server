@@ -44,7 +44,7 @@ function init() {
         // Limit POST size
         if (size > POST_SIZE_LIMIT) {
           res.abort();
-          respond(req, res, 422, { error: 'POST size cannot 10MB' });
+          respond(req, res, 422, { error: 'POST size cannot exceed 10MB' });
         }
       });
 
@@ -59,8 +59,13 @@ function init() {
           req.body = qs.parse(req.body);
           return debug.debugQuery(req, res);
         }
+        else if (path[1] === 'query')
+        {
+          req.body = JSON.parse(req.body)
+          return api.query(req, res);
+        }
           
-        respond(req, res, 404, { error: 'Invalid API endpoint' });
+        respond(req, res, 404, {error: 'Invalid API endpoint'});
       });
       return;
     }
