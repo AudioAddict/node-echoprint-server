@@ -44,13 +44,18 @@ function init() {
 
         // Limit POST size
         if (size > POST_SIZE_LIMIT) {
-          res.abort();
-          respond(req, res, 422, { error: 'POST size cannot exceed 10MB' });
+          req.abort();
+          return respond(req, res, 422, { error: 'POST size cannot exceed 10MB' });
         }
       });
-
+    
       req.on('end', function() {        
-        if (path[1] === 'ingest')
+        if (req.body.length === 0) {
+	  return respond(req, res, 422, { error: 'POST query must contain body' });
+        }
+
+
+	if (path[1] === 'ingest')
         {
           req.body = JSON.parse(req.body);
           return api.ingest(req, res);
