@@ -15,7 +15,7 @@ exports.query = function(req, res) {
 
   if (!code && req.body)
     code = req.body.code;
-  else if (!code)
+  if (!code)
     return server.respond(req, res, 500, { error: 'Missing code' });
 
   if (!codeVer && req.body)
