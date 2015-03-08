@@ -1,7 +1,8 @@
 /**
  * Simple HTTP server module
  */
-
+ 
+require('newrelic');
 var http = require('http');
 var urlParser = require('url');
 var qs = require('querystring');
@@ -43,13 +44,18 @@ function init() {
 
         // Limit POST size
         if (size > POST_SIZE_LIMIT) {
-          res.abort();
-          respond(req, res, 422, { error: 'POST size cannot 10MB' });
+          req.abort();
+          return respond(req, res, 422, { error: 'POST size cannot exceed 10MB' });
         }
       });
-
+    
       req.on('end', function() {        
-        if (path[1] === 'ingest')
+        if (req.body.length === 0) {
+	  return respond(req, res, 422, { error: 'POST query must contain body' });
+        }
+
+
+	if (path[1] === 'ingest')
         {
           req.body = JSON.parse(req.body);
           return api.ingest(req, res);
@@ -59,8 +65,13 @@ function init() {
           req.body = qs.parse(req.body);
           return debug.debugQuery(req, res);
         }
+        else if (path[1] === 'query')
+        {
+          req.body = JSON.parse(req.body)
+          return api.query(req, res);
+        }
           
-        respond(req, res, 404, { error: 'Invalid API endpoint' });
+        respond(req, res, 404, {error: 'Invalid API endpoint'});
       });
       return;
     }

@@ -4,6 +4,8 @@
 
 var log = require('winston');
 
+var env = process.env.NODE_ENV || 'development'
+
 var settings = {
   // Port that the web server will bind to
   web_port: 37760,
@@ -11,6 +13,8 @@ var settings = {
   // Database settings
   solr_hostname: 'localhost',
   solr_port: 8983,
+  solr_max_boolean_terms: 1024,
+  solr_corename: 'echoprint',
   
   // Set this to a system username to drop root privileges
   run_as_user: '',
@@ -25,20 +29,23 @@ var settings = {
   code_threshold: 10,
   
   // Supported version of echoprint-codegen codes
-  codever: '4.12'
+  codever: '4.12',
+
+  // Application environment
+  environment: env
 };
 
 // Override default settings with any local settings
 try {
-  var localSettings = require('./config.local');
+  localSettings = require('./config.' + env);
   
   for (var property in localSettings) {
     if (localSettings.hasOwnProperty(property))
       settings[property] = localSettings[property];
   }
   
-  log.info('Loaded settings from config.local.js. Database is Solr on ' +
-    settings.solr_hostname + ':' + settings.solr_port);
+  log.info('Loaded settings from config.' + env + '.js. Database is Solr on ' +
+    settings.solr_hostname + ':' + settings.solr_port + ' - core: ' + settings.solr_corename);
 } catch (err) {
   log.warn('Using default settings from config.js. Database is Solr on ' +
     settings.solr_hostname + ':' + settings.solr_port);

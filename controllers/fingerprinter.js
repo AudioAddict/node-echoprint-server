@@ -1,3 +1,4 @@
+require('newrelic');
 var zlib = require('zlib');
 var log = require('winston');
 var Mutex = require('../mutex');

@@ -3,6 +3,7 @@
  * by implementing all of the methods exported by this module
  */
 
+require('newrelic');
 var fs = require('fs');
 var mysql = require('mysql');
 var temp = require('temp');

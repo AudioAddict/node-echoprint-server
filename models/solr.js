@@ -1,3 +1,4 @@
+require('newrelic');
 var fs = require('fs');
 var solr = require('solr-client');
 var temp = require('temp');
@@ -69,7 +70,6 @@ function addTrack(artist, fp, callback) {
     import_date: new Date(),
     length: length,
     source: 'echoprint-codegen',
-    fp: fp.codeStr,
     codes: fp.codes,
     times: fp.times,
     codever: fp.codever

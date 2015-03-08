@@ -18,9 +18,6 @@
     <!-- AudioAddict platform track ID -->
     <field name="track_id" type="int" indexed="true" stored="true" required="true" multiValued="false"/>
 
-    <!-- The fingerprint associated with a track (a hashed, compressed version of of the code / time pairs) -->
-    <field name="fp" type="string" indexed="true" stored="true" required="true"/>
-
     <!-- The expanded codes for a track, and the corresponding time values. -->
     <!-- We can split these pairs up because multivalued fields are order-safe in lucene -->
     <field name="codes" type="int" indexed="true" stored="true" required="true" multiValued="true"/>
