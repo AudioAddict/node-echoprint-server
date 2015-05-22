@@ -2,7 +2,7 @@
  * Simple HTTP server module
  */
  
-require('newrelic');
+var newrelic = require('newrelic');
 var http = require('http');
 var urlParser = require('url');
 var qs = require('querystring');
@@ -23,7 +23,7 @@ var POST_SIZE_LIMIT = 10 * 1024 * 1024; // 10 megabytes
  * Initialize the HTTP endpoints.
  */
 function init() {
-  http.createServer(function(req, res) {
+  var server = http.createServer(function(req, res) {
     req.start = new Date();
     req.timer = setTimeout(function() { timeout(req, res); }, TIMEOUT);
     
@@ -31,16 +31,24 @@ function init() {
     var path = url.pathname.split('/', 16);
     var size = 0;
     
-    if (req.method === 'GET') {
-      if (path[1] === 'query')
+    if (req.method === 'GET') 
+    {
+      if (path[1] === 'query') {
+        newrelic.setTransactionName('query');
         return api.query(req, res);
+      }
       else if (path[1] === 'debug')
+      {
+        newrelic.setTransactionName('debug');
         return debug.debugQuery(req, res);
-    } else if (req.method === 'POST') {
+      }
+    } 
+    else if (req.method === 'POST') 
+    {
       req.body = '';
       req.on('data', function(data) { 
         size += data.length;
-        req.body += data; 
+        req.body += data;
 
         // Limit POST size
         if (size > POST_SIZE_LIMIT) {
@@ -51,22 +59,24 @@ function init() {
     
       req.on('end', function() {        
         if (req.body.length === 0) {
-	  return respond(req, res, 422, { error: 'POST query must contain body' });
+	        return respond(req, res, 422, { error: 'POST query must contain body' });
         }
 
-
-	if (path[1] === 'ingest')
+	      if (path[1] === 'ingest')
         {
+          newrelic.setTransactionName('ingest');
           req.body = JSON.parse(req.body);
           return api.ingest(req, res);
         }
         else if (path[1] === 'debug')
         {
+          newrelic.setTransactionName('debug');
           req.body = qs.parse(req.body);
           return debug.debugQuery(req, res);
         }
         else if (path[1] === 'query')
         {
+          newrelic.setTransactionName('query');
           req.body = JSON.parse(req.body)
           return api.query(req, res);
         }
@@ -77,9 +87,14 @@ function init() {
     }
     
     respond(req, res, 404, { error: 'Invalid API endpoint' });
-  }).addListener('clientError', function(ex) {
-    log.warn('Client error: ' + ex);
-  }).listen(config.web_port);
+  })
+
+  server.addListener('clientError', function(ex) {
+    newrelic.noticeError(ex);
+    log.error('Client error: ' + ex);
+  });
+
+  server.listen(config.web_port);
 
   log.info('HTTP listening on port ' + config.web_port);
 }
@@ -145,6 +160,7 @@ function respond(req, res, statusCode, body, headers) {
     res.writeHead(200, headers);
     res.end(body);
   } catch (ex) {
+    newrelic.noticeError(ex);
     log.error('Error sending response to ' + remoteAddress + ': ' + ex);
   }
 }
@@ -160,5 +176,7 @@ function timeout(req, res) {
   try {
     res.writeHead(503);
     res.end();
-  } catch (ex) { }
+  } catch (ex) {
+    newrelic.noticeError(ex);
+  }
 }
