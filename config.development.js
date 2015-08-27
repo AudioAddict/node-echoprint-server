@@ -8,7 +8,7 @@ module.exports = {
 
   // Database settings
   solr_hostname: 'localhost',
-  solr_port: 8983,
+  solr_port: 8980,
   solr_max_boolean_terms: 1024,
 
   // Set this to a system username to drop root privileges
