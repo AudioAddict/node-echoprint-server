@@ -6,7 +6,7 @@
     "jade": "0.28.2",
     "async": "0.2.6",
     "temp": "0.5.0",
-    "solr-client": "git://github.com/kfitzgerald/solr-node-client#master",
+    "solr-client": "git://github.com/lbdremy/solr-node-client#master",
     "underscore": "1.7.0",
     "newrelic": "1.16.2"
   }
