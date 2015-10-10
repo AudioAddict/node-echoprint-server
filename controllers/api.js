@@ -8,43 +8,90 @@ var config = require('../config');
 /**
  * Querying for the closest matching track.
  */
+exports.queryAll = function(req, res) {
+  var codeList;
+  try {
+    codeList = JSON.parse(req.body.json);
+  } catch (err) {
+    return server.respond(req, res, 422, { error: 'Failed to parse JSON'});
+  }
+
+  var total = codeList.length;
+  var results = [];
+  var collected = 0;
+  var collectResults = function(index, result) {
+    results[index] = result;
+    if (++collected == total) {
+      logRequestTime(new Date() - req.start);
+      return server.respond(req, res, 200, results);
+    }
+  };
+
+  for (var i = 0; i < total; i++) {
+    query(i, codeList[i].code, codeList[i].metadata.version, collectResults);
+  }
+};
+
+/**
+ * Querying for the closest matching track.
+ */
 exports.query = function(req, res) {
   var url = urlParser.parse(req.url, true);
   var code = url.query.code;
-  var codeVer = url.query.version;
+  var version = url.query.version;
 
   if (!code && req.body)
     code = req.body.code;
-  if (!code)
-    return server.respond(req, res, 500, { error: 'Missing code' });
 
-  if (!codeVer && req.body)
-    codeVer = req.body.version || req.body.metadata.version;
-  if (codeVer != config.codever)
-    return server.respond(req, res, 500, { error: 'Missing or invalid version' });
+  if (!version && req.body)
+    version = req.body.version || (req.body.metadata ? req.body.metadata.version : false)
 
-  fingerprinter.decodeCodeString(code, function(err, fp) {
-    if (err) {
-      log.error('Failed to decode codes for query: ' + err);
-      return server.respond(req, res, 500, { error: 'Failed to decode codes for query: ' + err });
-    }
-
-    fp.codever = codeVer;
-
-    fingerprinter.bestMatchForQuery(fp, config.code_threshold, function(err, result) {
-      if (err) {
-        log.warn('Failed to complete query: ' + err);
-        return server.respond(req, res, 500, { error: 'Failed to complete query: ' + err });
-      }
-
-      var duration = new Date() - req.start;
-      log.debug('Completed lookup in ' + duration + 'ms. success=' +
-        !!result.success + ', status=' + result.status);
-
-      return server.respond(req, res, 200, { success: !!result.success,
-        status: result.status, match: result.match || null, custom_id: result.custom_id });
-    });
+  query(null, code, version, function(index, result) {
+    logRequestTime(new Date() - req.start);
+    return server.respond(req, res, (result.success ? 200 : 422), result);
   });
+};
+
+/**
+ * INGEST ALL THE TRACKS!!!11
+ */
+exports.ingestAll = function(req, res) {
+  var fpList;
+  try {
+    fpList = JSON.parse(req.body.json);
+  } catch (err) {
+    return server.respond(req, res, 422, { error: 'Failed to parse JSON' });
+  }
+
+  var total = fpList.length;
+
+  // ensure every fingerprint has a track_id to map results back to
+  for (var i = 0; i < total; i++) {
+    if(fpList[i].track_id === undefined || fpList[i].track_id == "") {
+      return server.respond(req, res, 422, "One or more fingerprints is missing a track_id");
+    }
+  }
+
+  var results = {};
+  var collected = 0;
+  var collectResults = function(trackId, result) {
+
+    results[trackId] = result;
+    if (++collected == total) {
+      logRequestTime(new Date() - req.start);
+      return server.respond(req, res, 200, results);
+    }
+  };
+
+  for (var i = 0; i < total; i++) {
+    ingest(fpList[i].code,
+      fpList[i].metadata.version,
+      fpList[i].track_id,
+      fpList[i].upc,
+      fpList[i].isrc,
+      fpList[i].metadata.filename,
+      collectResults);
+  }
 };
 
 /**
@@ -52,45 +99,97 @@ exports.query = function(req, res) {
  */
 exports.ingest = function(req, res) {
   var code = req.body.code;
-  var codeVer = req.body.version || req.body.metadata.version;
-  var length = req.body.length || req.body.metadata.duration;
-  var track = req.body.track;
-  var artist = req.body.artist;
-  var custom_id = req.body.custom_id;
+  var version = req.body.version || req.body.metadata.version;
+  var upc = req.body.upc;
+  var isrc = req.body.isrc;
+  var trackId = req.body.track_id || req.body.custom_id;
 
-  if (!code)
-    return server.respond(req, res, 500, { error: 'Missing "code" field' });
-  if (!codeVer)
-    return server.respond(req, res, 500, { error: 'Missing "version" field' });
-  if (codeVer != config.codever)
-    return server.respond(req, res, 500, { error: 'Version "' + codeVer + '" does not match required version "' + config.codever + '"' });
-  if (isNaN(parseInt(length, 10)))
-    return server.respond(req, res, 500, { error: 'Missing or invalid "length" field' });
-
-  fingerprinter.decodeCodeString(code, function(err, fp) {
-    if (err || !fp.codes.length) {
-      log.error('Failed to decode codes for ingest: ' + err);
-      return server.respond(req, res, 500, { error: 'Failed to decode codes for ingest: ' + err });
-    }
-
-    fp.codever = codeVer;
-    fp.track = track;
-    fp.length = parseInt(length, 10);
-    fp.artist = artist;
-    fp.custom_id = custom_id;
-
-    fingerprinter.ingest(fp, function(err, result) {
-      if (err) {
-        log.error('Failed to ingest track: ' + err);
-        return server.respond(req, res, 500, { error: 'Failed to ingest track: ' + err });
-      }
-
-      var duration = new Date() - req.start;
-      log.debug('Ingested new track in ' + duration + 'ms. track_id=' +
-        result.track_id + ', artist_id=' + result.artist_id);
-
-      result.success = true;
-      return server.respond(req, res, 200, result);
-    });
+  ingest(code, version, trackId, upc, isrc, req.body.metadata.filename, function(trackId, result) {
+    logRequestTime(new Date() - req.start);
+    return server.respond(req, res, (result.success ? 200 : 422), result);
   });
 };
+
+function ingest(code, version, trackId, upc, isrc, filename, cb) {
+  if (!code)
+    return cb(trackId, error('Missing "code" field'));
+  if (version != config.codever)
+    return cb(trackId, error('Version "' + version + '" does not match required version "' + config.codever + '"'));
+  if (!trackId || trackId == "")
+    return cb(trackId, error('Missing "trackId" field'));
+
+  return fingerprinter.decodeCodeString(code, function(err, fp) {
+    if (err || !fp.codes.length) {
+      return cb(trackId, error('Failed to decode codes for ingest: ' + err));
+    }
+
+    fp.metadata = {
+      filename: filename,
+      trackId: trackId,
+      upc: upc,
+      isrc: isrc
+    };
+
+    fp.version = version;
+    return fingerprinter.ingest(fp, function(err, result) {
+      if (err) {
+        return cb(trackId, error('Failed to ingest track: ' + err));
+      }
+
+      return cb(trackId, result);
+    });
+  });
+}
+
+function query(index, code, version, cb) {
+  if (!code)
+    return cb(index, error('Missing code'));
+  if (version != config.codever)
+    return cb(index, error('Missing version'));
+
+  fingerprinter.decodeCodeString(code, function(err, fp) {
+    if (err) {
+      return cb(index, error('Failed to decode codes for query: ' + err));
+    }
+
+    fp.version = version;
+    fingerprinter.findMatches(fp, config.code_threshold, function(err, status, exactMatch, allMatches) {
+      if (err) {
+        return cb(index, error('Failed to complete query: ' + err));
+      }
+
+      var queryResult = {
+        exactMatch: exactMatch && newMatchResult(exactMatch),
+        debug_status: status,
+        matches: []
+      };
+
+      if (allMatches && allMatches.length > 0) {
+        for (var i = 0, total = allMatches.length; i < total; i++) {
+          queryResult.matches.push(newMatchResult(allMatches[i]));
+        }
+      }
+
+      return cb(index, queryResult);
+    });
+  });
+}
+
+function newMatchResult(match) {
+  return {
+    id: match.id,
+    track_id: match.trackId,
+    confidence: match.confidence,
+    filename: match.filename,
+    ingestedAt: match.ingestedAt
+  };
+}
+
+function logRequestTime(reqDuration) {
+  log.debug('Request finished in ' + reqDuration + 'ms');
+}
+
+function error(msg) {
+  log.error(msg);
+  return { error: msg };
+}

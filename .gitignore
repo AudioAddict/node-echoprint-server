@@ -1,6 +1,5 @@
-
 .DS_Store
 node_modules/
 logs/*.log
-
+newrelic.js
 config.local.js
