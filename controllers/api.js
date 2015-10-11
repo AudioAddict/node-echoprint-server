@@ -5,17 +5,8 @@ var fingerprinter = require('./fingerprinter');
 var server = require('../server');
 var config = require('../config');
 
-/**
- * Querying for the closest matching track.
- */
 exports.queryAll = function(req, res) {
-  var codeList;
-  try {
-    codeList = JSON.parse(req.body.json);
-  } catch (err) {
-    return server.respond(req, res, 422, { error: 'Failed to parse JSON'});
-  }
-
+  var codeList = req.body;
   var total = codeList.length;
   var results = [];
   var collected = 0;
@@ -56,13 +47,7 @@ exports.query = function(req, res) {
  * INGEST ALL THE TRACKS!!!11
  */
 exports.ingestAll = function(req, res) {
-  var fpList;
-  try {
-    fpList = JSON.parse(req.body.json);
-  } catch (err) {
-    return server.respond(req, res, 422, { error: 'Failed to parse JSON' });
-  }
-
+  var fpList = req.body;
   var total = fpList.length;
 
   // ensure every fingerprint has a track_id to map results back to
@@ -74,8 +59,8 @@ exports.ingestAll = function(req, res) {
 
   var results = {};
   var collected = 0;
-  var collectResults = function(trackId, result) {
 
+  var collectResults = function(trackId, result) {
     results[trackId] = result;
     if (++collected == total) {
       logRequestTime(new Date() - req.start);
@@ -129,7 +114,7 @@ function ingest(code, version, trackId, upc, isrc, filename, cb) {
       upc: upc,
       isrc: isrc
     };
-
+    debugger;
     fp.version = version;
     return fingerprinter.ingest(fp, function(err, result) {
       if (err) {
@@ -159,7 +144,7 @@ function query(index, code, version, cb) {
       }
 
       var queryResult = {
-        exactMatch: exactMatch && newMatchResult(exactMatch),
+        exact_match: exactMatch && newMatchResult(exactMatch),
         debug_status: status,
         matches: []
       };

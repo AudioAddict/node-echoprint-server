@@ -272,8 +272,8 @@ function getActualScore(fp, match, threshold, slop) {
  * artist_id, and artist name if available.
  */
 function ingest(fp, callback) {
-  log.info('Ingesting track_id=' + fp.track_id + ' UPC=' + fp.upc +
-    ' ISRC=' + fp.isrc + ' (' + fp.codes.length + ' codes)');
+  log.info('Ingesting track_id=' + fp.metadata.trackId + ' UPC=' + fp.metadata.upc +
+    ' ISRC=' + fp.metadata.isrc + ' (' + fp.codes.length + ' codes)');
 
   if (!fp.codes.length)
     return callback('Missing "codes" array', null);
