@@ -114,8 +114,8 @@ function ingest(code, version, trackId, upc, isrc, filename, cb) {
       upc: upc,
       isrc: isrc
     };
-    debugger;
     fp.version = version;
+
     return fingerprinter.ingest(fp, function(err, result) {
       if (err) {
         return cb(trackId, error('Failed to ingest track: ' + err));
@@ -138,20 +138,20 @@ function query(index, code, version, cb) {
     }
 
     fp.version = version;
-    fingerprinter.findMatches(fp, config.code_threshold, function(err, status, exactMatch, allMatches) {
+    fingerprinter.findMatches(fp, function(err, status, bestMatch, matches) {
       if (err) {
         return cb(index, error('Failed to complete query: ' + err));
       }
 
       var queryResult = {
-        exact_match: exactMatch && newMatchResult(exactMatch),
+        best_match: bestMatch && newMatchResult(bestMatch),
         debug_status: status,
         matches: []
       };
 
-      if (allMatches && allMatches.length > 0) {
-        for (var i = 0, total = allMatches.length; i < total; i++) {
-          queryResult.matches.push(newMatchResult(allMatches[i]));
+      if (matches && matches.length > 0) {
+        for (var i = 0, total = matches.length; i < total; i++) {
+          queryResult.matches.push(newMatchResult(matches[i]));
         }
       }
 

@@ -2,19 +2,28 @@ require('newrelic');
 var zlib = require('zlib');
 var log = require('winston');
 var config = require('../config');
-var database = require('../models/solr');
+var database = require('../lib/db_mysql');
+var _ = require('underscore');
 
 // Constants
 var MAX_INGEST_DURATION = 60 * 60 * 4;
 var SECONDS_TO_TIMESTAMP = 43.45;
-var MAX_ROWS = 30;
+var MAX_ROWS = 100;
 var MATCH_SLOP = 2;
 
 // min threshold for raw db matches
-var MIN_MATCH_SCORE_PERCENT = 0.20;
+var MIN_MATCH_SCORE_PERCENT = 0.05;
 
 // min theshold % for "actual score" histogram matches
-var MIN_MATCH_CONFIDENCE = 0.30 * 100;
+var MIN_MATCH_CONFIDENCE = 0.25 * 100;
+
+// how much of the fingerprint to use when querying
+var FP_TRIM_SECONDS = 180;
+
+// % difference between match 0 vs match 1 to determine if we have a "best match"
+// this was calculated using several remixes of the same song at varying qualities (FLAC, 320k, 192k, 64k)
+// the actual track confidence was always > 25% compared to the 2nd highest match
+var BEST_MATCH_DIFF = 0.25;
 
 // Exports
 exports.decodeCodeString = decodeCodeString;
@@ -84,8 +93,6 @@ function inflateCodeString(buf) {
  * Clamp this fingerprint to a maximum N seconds worth of codes.
  */
 function cutFPLength(fp, maxSeconds) {
-  if (!maxSeconds) maxSeconds = 180;
-
   var newFP = {};
   for(var key in fp) {
     if (fp.hasOwnProperty(key))
@@ -113,15 +120,16 @@ function cutFPLength(fp, maxSeconds) {
 /**
  * Finds the closest matching tracks, if any, to a given fingerprint.
  */
-function findMatches(fp, threshold, callback) {
-  fp = cutFPLength(fp);
+function findMatches(fp, callback) {
+  fp = cutFPLength(fp, FP_TRIM_SECONDS);
 
   if (!fp.codes.length)
     return callback('No valid fingerprint codes specified', null);
 
-  log.debug('Starting query with ' + fp.codes.length + ' codes');
+  var minScore = fp.codes.length * MIN_MATCH_SCORE_PERCENT;
+  log.debug('Starting query with ' + fp.codes.length + ' codes, need score > ' + minScore);
 
-  database.fpQuery(fp, MAX_ROWS, function(err, matches) {
+  database.fpQuery(fp, minScore, MAX_ROWS, function(err, matches) {
     if (err) return callback(err);
 
     if (!matches || !matches.length) {
@@ -130,7 +138,6 @@ function findMatches(fp, threshold, callback) {
     }
 
     log.debug('Matched ' + matches.length + ' tracks, top code overlap is ' + matches[0].score);
-    log.debug('Need score > ' + fp.codes.length * MIN_MATCH_SCORE_PERCENT);
 
     // If the best result matched fewer codes than our percentage threshold,
     // report no results
@@ -140,12 +147,13 @@ function findMatches(fp, threshold, callback) {
     }
 
     // Compute more accurate scores for each track by taking time offsets into account
-    var newMatches = [];
-    for (var i = 0; i < matches.length; i++) {
-      var match = matches[i];
+    var newMatches = [],
+        numMatches = matches.length,
+        match = null;
 
-      // get a confidence rating of 0-100 by examining the time code histogram
-      match.confidence = getActualScore(fp, match, threshold, MATCH_SLOP);
+    for (var i = 0; i < numMatches; i++) {
+      match = matches[i];
+      match.confidence = getActualScore(fp, match, MATCH_SLOP);
 
       // filter results that don't meet the minimum histogram threshold
       if (match.confidence >= MIN_MATCH_CONFIDENCE)
@@ -158,30 +166,31 @@ function findMatches(fp, threshold, callback) {
       return callback(null, 'NO_CONFIDENT_RESULTS');
     }
 
-    // Sort the matches based on confidence
+    // sort the matches based on confidence
     matches.sort(function(a, b) { return b.confidence - a.confidence; });
 
-    var exactMatch = null;
-    if (matches[0].confidence >= 100) {
-      if (matches.length == 1 || (matches[0].confidence > matches[1].confidence)) {
-        exactMatch = matches.shift();
-        exactMatch.confidence = clampConfidence(exactMatch.confidence);
+    var status = "MULTIPLE_GOOD_RESULTS";
+    var bestMatch = null;
+    if (matches.length == 1) {
+      status = "BEST_MATCH";
+      bestMatch = matches.shift();
+    } else {
+      // determine if the top result is significantly better than the next best result
+      if (matches[0].confidence - matches[1].confidence >= matches[0].confidence * BEST_MATCH_DIFF) {
+        status = "BEST_MATCH_MULTIPLE_RESULTS";
+        bestMatch = matches.shift();
       }
     }
 
+    // clamp the confidence values
+    if (bestMatch) {
+      bestMatch.confidence = clampConfidence(bestMatch.confidence);
+    }
     for (var i = 0; i < matches.length; i++) {
       matches[i].confidence = clampConfidence(matches[i].confidence);
     }
 
-    var status = "MULTIPLE_GOOD_RESULTS";
-    if (exactMatch) {
-      status = "EXACT_MATCH";
-      if (matches.length) {
-        status += "_MULTIPLE_RESULTS";
-      }
-    }
-
-    callback(null, status, exactMatch, matches);
+    callback(null, status, bestMatch, matches);
   });
 }
 
@@ -216,10 +225,7 @@ function getCodesToTimes(match, slop) {
  * Computes the actual match score for a track by taking time offsets into
  * account.
  */
-function getActualScore(fp, match, threshold, slop) {
-  if (match.codes.length < threshold)
-    return 0;
-
+function getActualScore(fp, match, slop) {
   var timeDiffs = {};
   var code, time, matchTimes, dist, i, j;
 
