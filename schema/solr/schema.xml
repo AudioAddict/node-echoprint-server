@@ -22,7 +22,6 @@
   <field name="times" type="int" indexed="true" stored="true" required="true" multiValued="true"/>
   <field name="version" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
 
-
   <!-- AudioAddict content fields -->
   <field name="trackId" type="int" indexed="true" stored="true" required="true" multiValued="false"/>
   <field name="upc" type="string" indexed="true" stored="true" required="false" multiValued="false"/>

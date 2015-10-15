@@ -16,7 +16,7 @@ exports.init = init;
 exports.renderView = renderView;
 exports.respond = respond;
 
-var TIMEOUT = 1000 * 120;
+var TIMEOUT = 1000 * 320;
 var POST_SIZE_LIMIT = 10 * 1024 * 1024; // 10 megabytes
 
 /**

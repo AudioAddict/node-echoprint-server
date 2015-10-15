@@ -3,3 +3,4 @@ node_modules/
 logs/*.log
 newrelic.js
 config.local.js
+newrelic_agent.log

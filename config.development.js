@@ -7,9 +7,15 @@ module.exports = {
   web_port: 37760,
 
   // Database settings
-  solr_hostname: 'localhost',
-  solr_port: 8983,
+  solr_hostname: 'vagrant-env-platform',
+  solr_port: 8980,
   solr_max_boolean_terms: 1024,
+
+    // Database settings
+  db_user: 'echoprint',
+  db_pass: 'Ph_F?du7ucAPev',
+  db_database: 'echoprint',
+  db_host: 'colossus.audioaddict.com',
 
   // Set this to a system username to drop root privileges
   run_as_user: 'vagrant',
@@ -18,10 +24,6 @@ module.exports = {
   log_path: __dirname + '/logs/echoprint.log',
   // Log level. Valid values are debug, info, warn, error
   log_level: 'debug',
-
-  // Minimum number of codes that must be matched to consider a fingerprint
-  // match valid
-  code_threshold: 10,
 
   // Supported version of echoprint-codegen codes
   codever: '4.12'
