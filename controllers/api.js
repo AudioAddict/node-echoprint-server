@@ -23,28 +23,32 @@ exports.query = function(req, res) {
   if (codeVer != config.codever)
     return server.respond(req, res, 500, { error: 'Missing or invalid version' });
 
-  fingerprinter.decodeCodeString(code, function(err, fp) {
-    if (err) {
-      log.error('Failed to decode codes for query: ' + err);
-      return server.respond(req, res, 500, { error: 'Failed to decode codes for query: ' + err });
-    }
+  // fingerprinter.decodeCodeString(code, function(err, fp) {
+  //   if (err) {
+  //     log.error('Failed to decode codes for query: ' + err);
+  //     return server.respond(req, res, 500, { error: 'Failed to decode codes for query: ' + err });
+  //   }
 
-    fp.codever = codeVer;
+  //   fp.codever = codeVer;
 
-    fingerprinter.bestMatchForQuery(fp, config.code_threshold, function(err, result) {
-      if (err) {
-        log.warn('Failed to complete query: ' + err);
-        return server.respond(req, res, 500, { error: 'Failed to complete query: ' + err });
-      }
+  //   fingerprinter.bestMatchForQuery(fp, config.code_threshold, function(err, result) {
+  //     if (err) {
+  //       log.warn('Failed to complete query: ' + err);
+  //       return server.respond(req, res, 500, { error: 'Failed to complete query: ' + err });
+  //     }
 
-      var duration = new Date() - req.start;
-      log.debug('Completed lookup in ' + duration + 'ms. success=' +
-        !!result.success + ', status=' + result.status);
+  //     var duration = new Date() - req.start;
+  //     log.debug('Completed lookup in ' + duration + 'ms. success=' +
+  //       !!result.success + ', status=' + result.status);
 
-      return server.respond(req, res, 200, { success: !!result.success,
-        status: result.status, match: result.match || null, custom_id: result.custom_id });
-    });
-  });
+  //     return server.respond(req, res, 200, { success: !!result.success,
+  //       status: result.status, match: result.match || null, custom_id: result.custom_id });
+  //   });
+  // });
+  
+  // TEMPORARY SKIP OF QUERY OPERATIONS
+  log.debug('CAUTION: QUERY WAS SKIPPED! ALL QUERIES RETURN FALSE IF INPUT WAS IN VALID FORMAT, OR ERROR IF NOT')
+  return server.respond(req, res, 200, { success: false, status: 'NO_RESULTS', match: null, custom_id: null });
 };
 
 /**
